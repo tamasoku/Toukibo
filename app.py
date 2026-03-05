@@ -40,13 +40,38 @@ if uploaded_file is not None:
     if '不動産番号' in df_filled.columns:
         df_filled['不動産番号'] = df_filled['不動産番号'].apply(lambda x: str(x))
 
-    # 各地番の現所有者のみ抽出（最後の行＝現所有者）
-    if '地番' in df_filled.columns:
-        df_current = df_filled.dropna(subset=['権利部（甲区）氏名']).drop_duplicates(
-            subset=['地番'], keep='last'
-        )
-    else:
-        df_current = df_filled.dropna(subset=['権利部（甲区）氏名'])
+    # 各地番の現所有者を抽出
+    # ルール: 権利部（甲区）原因に値がある行＝新しい所有権移転の開始
+    #         その後に原因が空の行＝同じ取引の共有者
+    #         各地番の最後の「原因あり」行から末尾まで＝現所有者
+    def extract_current_owners(df_src):
+        has_cause_col = '権利部（甲区）原因' in df_src.columns
+        has_chiban_col = '地番' in df_src.columns
+
+        if not has_chiban_col:
+            return df_src.dropna(subset=['権利部（甲区）氏名'])
+
+        results = []
+        for _, group in df_src.groupby('地番', sort=False):
+            named = group.dropna(subset=['権利部（甲区）氏名'])
+            if named.empty:
+                continue
+
+            if has_cause_col:
+                has_cause = named[named['権利部（甲区）原因'].notna()]
+                if not has_cause.empty:
+                    last_cause_idx = has_cause.index[-1]
+                    results.append(named.loc[named.index >= last_cause_idx])
+                    continue
+
+            # 原因カラムがない or 全て空の場合は最後の行のみ
+            results.append(named.tail(1))
+
+        if results:
+            return pd.concat(results)
+        return pd.DataFrame(columns=df_src.columns)
+
+    df_current = extract_current_owners(df_filled)
 
     # データプレビュー
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
