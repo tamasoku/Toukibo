@@ -71,11 +71,10 @@ if uploaded_file is not None:
         else:
             file_name = "filtered_data.xlsx"
 
-        # Excelファイルをメモリ上で作成（同時アクセスでも競合しない）
-        @st.cache_data
-        def convert_df_to_excel(_df):
+        # Excelファイルをメモリ上で作成
+        def convert_df_to_excel(df_to_convert):
             output = BytesIO()
-            _df.to_excel(output, index=False)
+            df_to_convert.to_excel(output, index=False)
             return output.getvalue()
 
         excel_data = convert_df_to_excel(filtered_df)
