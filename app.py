@@ -40,13 +40,21 @@ if uploaded_file is not None:
     if '不動産番号' in df_filled.columns:
         df_filled['不動産番号'] = df_filled['不動産番号'].apply(lambda x: str(x))
 
+    # 各地番の現所有者のみ抽出（最後の行＝現所有者）
+    if '地番' in df_filled.columns:
+        df_current = df_filled.dropna(subset=['権利部（甲区）氏名']).drop_duplicates(
+            subset=['地番'], keep='last'
+        )
+    else:
+        df_current = df_filled.dropna(subset=['権利部（甲区）氏名'])
+
     # データプレビュー
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
         st.dataframe(df_filled)
 
-    # 名前の検索・フィルタ（空の行を除外）
+    # 名前の検索・フィルタ（現所有者のみ）
     name_search = st.text_input("名前で検索（部分一致）", placeholder="例: 峯")
-    names = df_filled['権利部（甲区）氏名'].dropna().unique()
+    names = df_current['権利部（甲区）氏名'].unique()
     if name_search:
         names = [n for n in names if name_search in str(n)]
 
@@ -54,13 +62,7 @@ if uploaded_file is not None:
 
     # 名前でフィルタリング
     if selected_names:
-        filtered_df = df_filled[df_filled['権利部（甲区）氏名'].isin(selected_names)]
-
-        # 名前と地番が重複する場合は、下段の行を保持する
-        dedup_cols = ['権利部（甲区）氏名']
-        if '地番' in filtered_df.columns:
-            dedup_cols.append('地番')
-        filtered_df = filtered_df.drop_duplicates(subset=dedup_cols, keep='last')
+        filtered_df = df_current[df_current['権利部（甲区）氏名'].isin(selected_names)]
 
         st.write(f"**{len(filtered_df)}件** がマッチしました")
         st.dataframe(filtered_df)
