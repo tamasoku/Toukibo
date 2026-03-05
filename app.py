@@ -29,8 +29,12 @@ if uploaded_file is not None:
         st.error(f"必要なカラムがありません: {', '.join(missing)}")
         st.stop()
 
-    # 空白行を補完
-    df_filled = df.ffill()
+    # 物件特定カラムのみ前方補完（権利部カラムはffillしない）
+    # → 区分所有等で権利部が空の行に、前の行の所有者が誤って入るのを防ぐ
+    property_cols = ['不動産番号', '所在', '地番', '地目', '地積']
+    property_cols = [c for c in property_cols if c in df.columns]
+    df_filled = df.copy()
+    df_filled[property_cols] = df[property_cols].ffill()
 
     # 不動産番号を文字列形式で保持
     if '不動産番号' in df_filled.columns:
@@ -40,9 +44,9 @@ if uploaded_file is not None:
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
         st.dataframe(df_filled)
 
-    # 名前の検索・フィルタ
+    # 名前の検索・フィルタ（空の行を除外）
     name_search = st.text_input("名前で検索（部分一致）", placeholder="例: 峯")
-    names = df_filled['権利部（甲区）氏名'].unique()
+    names = df_filled['権利部（甲区）氏名'].dropna().unique()
     if name_search:
         names = [n for n in names if name_search in str(n)]
 
@@ -53,7 +57,10 @@ if uploaded_file is not None:
         filtered_df = df_filled[df_filled['権利部（甲区）氏名'].isin(selected_names)]
 
         # 名前と地番が重複する場合は、下段の行を保持する
-        filtered_df = filtered_df.drop_duplicates(subset=['権利部（甲区）氏名', '地番'], keep='last')
+        dedup_cols = ['権利部（甲区）氏名']
+        if '地番' in filtered_df.columns:
+            dedup_cols.append('地番')
+        filtered_df = filtered_df.drop_duplicates(subset=dedup_cols, keep='last')
 
         st.write(f"**{len(filtered_df)}件** がマッチしました")
         st.dataframe(filtered_df)
