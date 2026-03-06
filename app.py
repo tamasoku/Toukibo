@@ -74,7 +74,7 @@ if uploaded_file is not None:
                     for idx, row in entry_group.iterrows():
                         new_rows[row['権利部（甲区）氏名']] = row
 
-                    if '所有権移転' in purpose or '所有権登記' in purpose:
+                    if '所有権移転' in purpose or '所有権登記' in purpose or '共有者全員持分全部移転' in purpose:
                         current_rows = new_rows.copy()
                     else:
                         match = re.match(r'(.+?)持分(全部|一部)移転', purpose)
