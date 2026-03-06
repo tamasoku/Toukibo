@@ -127,9 +127,13 @@ if uploaded_file is not None:
 
     selected_names = st.multiselect("フィルタする名前を選択してください", names)
 
+    # 出力から除外するカラム（ロジック用のみ）
+    exclude_cols = ['権利部（甲区）順位番号', '権利部（甲区）登記の目的', '権利部（甲区）原因', '権利部（甲区）種類']
+    output_cols = [c for c in df_current.columns if c not in exclude_cols]
+
     # 名前でフィルタリング
     if selected_names:
-        filtered_df = df_current[df_current['権利部（甲区）氏名'].isin(selected_names)]
+        filtered_df = df_current[df_current['権利部（甲区）氏名'].isin(selected_names)][output_cols]
 
         st.write(f"**{len(filtered_df)}件** がマッチしました")
         st.dataframe(filtered_df)
