@@ -74,10 +74,10 @@ if uploaded_file is not None:
                     for idx, row in entry_group.iterrows():
                         new_rows[row['権利部（甲区）氏名']] = row
 
-                    if '所有権移転' in purpose or '所有権登記' in purpose or '共有者全員持分全部移転' in purpose:
+                    if purpose in ('所有権移転', '所有権登記', '合併による所有権登記') or '共有者全員持分全部移転' in purpose:
                         current_rows = new_rows.copy()
                     else:
-                        match = re.match(r'(.+?)持分(全部|一部)移転', purpose)
+                        match = re.match(r'(.+?)持分(全部|一部)(?:（[^）]*）)?移転', purpose)
                         if match:
                             person, transfer_type = match.group(1), match.group(2)
                             if transfer_type == '全部':
@@ -128,7 +128,7 @@ if uploaded_file is not None:
     selected_names = st.multiselect("フィルタする名前を選択してください", names)
 
     # 出力から除外するカラム（ロジック用のみ）
-    exclude_cols = ['権利部（甲区）順位番号', '権利部（甲区）登記の目的', '権利部（甲区）原因', '権利部（甲区）種類']
+    exclude_cols = ['権利部（甲区）順位番号', '権利部（甲区）登記の目的', '権利部（甲区）種類']
     output_cols = [c for c in df_current.columns if c not in exclude_cols]
 
     # 名前でフィルタリング
