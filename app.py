@@ -106,6 +106,15 @@ if uploaded_file is not None:
 
     df_current = extract_current_owners(df_filled)
 
+    # デバッグ情報
+    with st.expander("デバッグ情報"):
+        st.write("カラム名:", df_filled.columns.tolist())
+        st.write(f"全行数: {len(df_filled)}, 現所有者行数: {len(df_current)}")
+        st.write(f"順位番号カラム: {'権利部（甲区）順位番号' in df_filled.columns}")
+        st.write(f"登記の目的カラム: {'権利部（甲区）登記の目的' in df_filled.columns}")
+        st.write("現所有者:")
+        st.dataframe(df_current)
+
     # データプレビュー
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
         st.dataframe(df_filled)
