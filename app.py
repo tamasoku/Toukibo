@@ -1,3 +1,5 @@
+import re
+
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -41,12 +43,16 @@ if uploaded_file is not None:
         df_filled['不動産番号'] = df_filled['不動産番号'].apply(lambda x: str(x))
 
     # 各地番の現所有者を抽出
-    # ルール: 権利部（甲区）原因に値がある行＝新しい所有権移転の開始
-    #         その後に原因が空の行＝同じ取引の共有者
-    #         各地番の最後の「原因あり」行から末尾まで＝現所有者
+    # 「登記の目的」カラムがある場合:
+    #   所有権移転/所有権登記 → 全員入れ替え
+    #   X持分全部移転 → Xを除外し新しい人を追加
+    #   X持分一部移転 → Xは残し新しい人を追加
+    # ない場合: 最後の「原因あり」行から末尾まで（フォールバック）
     def extract_current_owners(df_src):
-        has_cause_col = '権利部（甲区）原因' in df_src.columns
         has_chiban_col = '地番' in df_src.columns
+        has_purpose_col = '権利部（甲区）登記の目的' in df_src.columns
+        has_junni_col = '権利部（甲区）順位番号' in df_src.columns
+        has_cause_col = '権利部（甲区）原因' in df_src.columns
 
         if not has_chiban_col:
             return df_src.dropna(subset=['権利部（甲区）氏名'])
@@ -57,6 +63,34 @@ if uploaded_file is not None:
             if named.empty:
                 continue
 
+            # 順位番号＋登記の目的がある場合: 持分移転を追跡して正確に判定
+            if has_purpose_col and has_junni_col:
+                work = named.copy()
+                work['権利部（甲区）順位番号'] = work['権利部（甲区）順位番号'].ffill()
+                current_rows = {}
+                for _, entry_group in work.groupby('権利部（甲区）順位番号', sort=False):
+                    purpose = str(entry_group.iloc[0].get('権利部（甲区）登記の目的', ''))
+                    new_rows = {}
+                    for idx, row in entry_group.iterrows():
+                        new_rows[row['権利部（甲区）氏名']] = row
+
+                    if '所有権移転' in purpose or '所有権登記' in purpose:
+                        current_rows = new_rows.copy()
+                    else:
+                        match = re.match(r'(.+?)持分(全部|一部)移転', purpose)
+                        if match:
+                            person, transfer_type = match.group(1), match.group(2)
+                            if transfer_type == '全部':
+                                current_rows.pop(person, None)
+                            current_rows.update(new_rows)
+                        else:
+                            current_rows.update(new_rows)
+
+                if current_rows:
+                    results.append(pd.DataFrame(list(current_rows.values())))
+                continue
+
+            # フォールバック: 原因カラムベースの判定
             if has_cause_col:
                 has_cause = named[named['権利部（甲区）原因'].notna()]
                 if not has_cause.empty:
@@ -64,7 +98,6 @@ if uploaded_file is not None:
                     results.append(named.loc[named.index >= last_cause_idx])
                     continue
 
-            # 原因カラムがない or 全て空の場合は最後の行のみ
             results.append(named.tail(1))
 
         if results:
