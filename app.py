@@ -1,3 +1,5 @@
+import re
+
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -29,20 +31,97 @@ if uploaded_file is not None:
         st.error(f"必要なカラムがありません: {', '.join(missing)}")
         st.stop()
 
-    # 空白行を補完
-    df_filled = df.ffill()
+    # 物件特定カラムのみ前方補完（権利部カラムはffillしない）
+    # → 区分所有等で権利部が空の行に、前の行の所有者が誤って入るのを防ぐ
+    property_cols = ['不動産番号', '所在', '地番', '地目', '地積']
+    property_cols = [c for c in property_cols if c in df.columns]
+    df_filled = df.copy()
+    df_filled[property_cols] = df[property_cols].ffill()
 
     # 不動産番号を文字列形式で保持
     if '不動産番号' in df_filled.columns:
         df_filled['不動産番号'] = df_filled['不動産番号'].apply(lambda x: str(x))
 
+    # 各地番の現所有者を抽出
+    # 「登記の目的」カラムがある場合:
+    #   所有権移転/所有権登記 → 全員入れ替え
+    #   X持分全部移転 → Xを除外し新しい人を追加
+    #   X持分一部移転 → Xは残し新しい人を追加
+    # ない場合: 最後の「原因あり」行から末尾まで（フォールバック）
+    def extract_current_owners(df_src):
+        has_chiban_col = '地番' in df_src.columns
+        has_purpose_col = '権利部（甲区）登記の目的' in df_src.columns
+        has_junni_col = '権利部（甲区）順位番号' in df_src.columns
+        has_cause_col = '権利部（甲区）原因' in df_src.columns
+
+        if not has_chiban_col:
+            return df_src.dropna(subset=['権利部（甲区）氏名'])
+
+        results = []
+        for _, group in df_src.groupby('地番', sort=False):
+            named = group.dropna(subset=['権利部（甲区）氏名'])
+            if named.empty:
+                continue
+
+            # 順位番号＋登記の目的がある場合: 持分移転を追跡して正確に判定
+            if has_purpose_col and has_junni_col:
+                work = named.copy()
+                work['権利部（甲区）順位番号'] = work['権利部（甲区）順位番号'].ffill()
+                current_rows = {}
+                for _, entry_group in work.groupby('権利部（甲区）順位番号', sort=False):
+                    purpose = str(entry_group.iloc[0].get('権利部（甲区）登記の目的', ''))
+                    new_rows = {}
+                    for idx, row in entry_group.iterrows():
+                        new_rows[row['権利部（甲区）氏名']] = row
+
+                    if '所有権移転' in purpose or '所有権登記' in purpose:
+                        current_rows = new_rows.copy()
+                    else:
+                        match = re.match(r'(.+?)持分(全部|一部)移転', purpose)
+                        if match:
+                            person, transfer_type = match.group(1), match.group(2)
+                            if transfer_type == '全部':
+                                current_rows.pop(person, None)
+                            current_rows.update(new_rows)
+                        else:
+                            current_rows.update(new_rows)
+
+                if current_rows:
+                    results.append(pd.DataFrame(list(current_rows.values())))
+                continue
+
+            # フォールバック: 原因カラムベースの判定
+            if has_cause_col:
+                has_cause = named[named['権利部（甲区）原因'].notna()]
+                if not has_cause.empty:
+                    last_cause_idx = has_cause.index[-1]
+                    results.append(named.loc[named.index >= last_cause_idx])
+                    continue
+
+            results.append(named.tail(1))
+
+        if results:
+            return pd.concat(results)
+        return pd.DataFrame(columns=df_src.columns)
+
+    df_current = extract_current_owners(df_filled)
+
+    # デバッグ情報
+    with st.expander("デバッグ情報"):
+        st.write("カラム名:", df_filled.columns.tolist())
+        st.write(f"全行数: {len(df_filled)}, 現所有者行数: {len(df_current)}")
+        st.write(f"順位番号カラム: {'権利部（甲区）順位番号' in df_filled.columns}")
+        st.write(f"登記の目的カラム: {'権利部（甲区）登記の目的' in df_filled.columns}")
+        st.write("現所有者:")
+        st.dataframe(df_current)
+
     # データプレビュー
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
         st.dataframe(df_filled)
 
-    # 名前の検索・フィルタ
+    # 名前の検索・フィルタ（現所有者のみ）
     name_search = st.text_input("名前で検索（部分一致）", placeholder="例: 峯")
-    names = df_filled['権利部（甲区）氏名'].unique()
+    names = df_current['権利部（甲区）氏名'].unique()
     if name_search:
         names = [n for n in names if name_search in str(n)]
 
@@ -50,10 +129,7 @@ if uploaded_file is not None:
 
     # 名前でフィルタリング
     if selected_names:
-        filtered_df = df_filled[df_filled['権利部（甲区）氏名'].isin(selected_names)]
-
-        # 名前と地番が重複する場合は、下段の行を保持する
-        filtered_df = filtered_df.drop_duplicates(subset=['権利部（甲区）氏名', '地番'], keep='last')
+        filtered_df = df_current[df_current['権利部（甲区）氏名'].isin(selected_names)]
 
         st.write(f"**{len(filtered_df)}件** がマッチしました")
         st.dataframe(filtered_df)
