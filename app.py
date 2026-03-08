@@ -144,9 +144,9 @@ if uploaded_file is not None:
                 location_str = location_str.replace(ch, '')
             if len(locations) > 3:
                 location_str += '_他'
-            file_name = f"{location_str}.xlsx"
+            file_name = f"{location_str}_JUSTDB用.xlsx"
         else:
-            file_name = "filtered_data.xlsx"
+            file_name = "filtered_data_JUSTDB用.xlsx"
 
         # Excelファイルをメモリ上で作成
         def convert_df_to_excel(df_to_convert):
