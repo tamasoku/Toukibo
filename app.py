@@ -163,6 +163,7 @@ st.download_button(
 
 # ── Step 3: 申請地/対面地/隣接地の分類 → 現場データ生成 ──
 st.header("Step 3: 現場データ生成")
+st.markdown("このまま現場データExcelが必要な方は使用ください")
 
 if '地番' not in filtered_df.columns or '所在' not in filtered_df.columns:
     st.error("現場データ生成に必要な列（地番・所在）がありません。")
