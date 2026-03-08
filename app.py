@@ -59,6 +59,16 @@ if uploaded_file is not None:
 
         results = []
         for _, group in df_src.groupby('地番', sort=False):
+            # 敷地権化された土地の判定: 登記の目的が「所有権敷地権」のみの場合
+            if has_purpose_col:
+                purposes = group['権利部（甲区）登記の目的'].dropna().unique()
+                if len(purposes) == 1 and purposes[0] == '所有権敷地権':
+                    row = group.iloc[0].copy()
+                    row['地積'] = '所有権敷地権'
+                    row['権利部（甲区）氏名'] = '所有権敷地権'
+                    results.append(pd.DataFrame([row]))
+                    continue
+
             named = group.dropna(subset=['権利部（甲区）氏名'])
             if named.empty:
                 continue
