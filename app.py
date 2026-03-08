@@ -76,6 +76,8 @@ if uploaded_file is not None:
             if has_purpose_col and has_junni_col:
                 work = named.copy()
                 work['権利部（甲区）順位番号'] = work['権利部（甲区）順位番号'].ffill()
+                if has_cause_col:
+                    work['権利部（甲区）原因'] = work['権利部（甲区）原因'].ffill()
                 current_rows = {}
                 for _, entry_group in work.groupby('権利部（甲区）順位番号', sort=False):
                     purpose = str(entry_group.iloc[0].get('権利部（甲区）登記の目的', ''))
