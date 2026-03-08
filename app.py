@@ -121,11 +121,8 @@ if uploaded_file is not None:
 
     # 名前フィルタ（現所有者のみ）
     names = df_current['権利部（甲区）氏名'].unique()
-    selected_names = st.multiselect(
-        "フィルタする名前を選択してください",
-        names,
-        help="※現所有者全ての場合は「Select all」を選択ください"
-    )
+    st.markdown("※現所有者全ての場合は「Select all」を選択ください")
+    selected_names = st.multiselect("フィルタする名前を選択してください", names)
 
     # 出力から除外するカラム（ロジック用のみ）
     exclude_cols = ['権利部（甲区）順位番号', '権利部（甲区）登記の目的', '権利部（甲区）種類']
