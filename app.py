@@ -119,13 +119,13 @@ if uploaded_file is not None:
     with st.expander(f"アップロードデータプレビュー（全{len(df_filled)}件）"):
         st.dataframe(df_filled)
 
-    # 名前の検索・フィルタ（現所有者のみ）
-    name_search = st.text_input("名前で検索（部分一致）", placeholder="例: 峯")
+    # 名前フィルタ（現所有者のみ）
     names = df_current['権利部（甲区）氏名'].unique()
-    if name_search:
-        names = [n for n in names if name_search in str(n)]
-
-    selected_names = st.multiselect("フィルタする名前を選択してください", names)
+    selected_names = st.multiselect(
+        "フィルタする名前を選択してください",
+        names,
+        help="※現所有者全ての場合は「Select all」を選択ください"
+    )
 
     # 出力から除外するカラム（ロジック用のみ）
     exclude_cols = ['権利部（甲区）順位番号', '権利部（甲区）登記の目的', '権利部（甲区）種類']
