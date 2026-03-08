@@ -64,7 +64,6 @@ if uploaded_file is not None:
                 purposes = group['権利部（甲区）登記の目的'].dropna().unique()
                 if len(purposes) == 1 and purposes[0] == '所有権敷地権':
                     row = group.iloc[0].copy()
-                    row['地積'] = '所有権敷地権'
                     row['権利部（甲区）氏名'] = '所有権敷地権'
                     results.append(pd.DataFrame([row]))
                     continue
