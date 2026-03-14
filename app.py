@@ -82,11 +82,11 @@ def extract_current_owners(df_src):
                 if purpose in ('所有権移転', '所有権登記', '合併による所有権登記') or '共有者全員持分全部移転' in purpose:
                     current_rows = new_rows.copy()
                 else:
-                    match = re.match(r'(.+?)持分(全部|一部)(?:（[^）]*）)?移転', purpose)
-                    if match:
-                        person, transfer_type = match.group(1), match.group(2)
-                        if transfer_type == '全部':
-                            current_rows.pop(person, None)
+                    matches = re.findall(r'([^、]+?)持分(全部|一部)', purpose)
+                    if matches and '移転' in purpose:
+                        for person, transfer_type in matches:
+                            if transfer_type == '全部':
+                                current_rows.pop(person, None)
                         current_rows.update(new_rows)
                     else:
                         current_rows.update(new_rows)
