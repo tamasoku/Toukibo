@@ -49,12 +49,22 @@ def extract_current_owners(df_src):
     has_purpose_col = '権利部（甲区）登記の目的' in df_src.columns
     has_junni_col = '権利部（甲区）順位番号' in df_src.columns
     has_cause_col = '権利部（甲区）原因' in df_src.columns
+    has_fudosan_col = '不動産番号' in df_src.columns
+    has_shozai_col = '所在' in df_src.columns
 
     if not has_chiban_col:
         return df_src.dropna(subset=['権利部（甲区）氏名'])
 
+    # 不動産番号があれば最優先（全国一意のID）。無ければ所在+地番でグループ化。
+    if has_fudosan_col:
+        group_key = '不動産番号'
+    elif has_shozai_col:
+        group_key = ['所在', '地番']
+    else:
+        group_key = '地番'
+
     results = []
-    for _, group in df_src.groupby('地番', sort=False):
+    for _, group in df_src.groupby(group_key, sort=False):
         if has_purpose_col:
             purposes = group['権利部（甲区）登記の目的'].dropna().unique()
             if len(purposes) == 1 and purposes[0] == '所有権敷地権':
