@@ -66,8 +66,8 @@ def extract_current_owners(df_src):
     results = []
     for _, group in df_src.groupby(group_key, sort=False):
         if has_purpose_col:
-            purposes = group['権利部（甲区）登記の目的'].dropna().unique()
-            if len(purposes) == 1 and purposes[0] == '所有権敷地権':
+            purposes_series = group['権利部（甲区）登記の目的'].dropna()
+            if not purposes_series.empty and purposes_series.iloc[-1] == '所有権敷地権':
                 row = group.iloc[0].copy()
                 row['権利部（甲区）氏名'] = '所有権敷地権'
                 results.append(pd.DataFrame([row]))
