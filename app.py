@@ -70,6 +70,10 @@ def extract_current_owners(df_src):
             if not purposes_series.empty and purposes_series.iloc[-1] == '所有権敷地権':
                 row = group.iloc[0].copy()
                 row['権利部（甲区）氏名'] = '所有権敷地権'
+                if '権利部（甲区）住所' in row.index:
+                    row['権利部（甲区）住所'] = None
+                if '権利部（甲区）原因' in row.index:
+                    row['権利部（甲区）原因'] = None
                 results.append(pd.DataFrame([row]))
                 continue
 
