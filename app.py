@@ -81,7 +81,10 @@ def extract_current_owners(df_src):
         if named.empty:
             continue
 
-        if has_purpose_col and has_junni_col:
+        group_has_junni = has_junni_col and group['権利部（甲区）順位番号'].notna().any()
+        group_has_purpose = has_purpose_col and group['権利部（甲区）登記の目的'].notna().any()
+
+        if group_has_purpose and group_has_junni:
             work = named.copy()
             work['権利部（甲区）順位番号'] = work['権利部（甲区）順位番号'].ffill()
             if has_cause_col:
